@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Logger</title>    <style>        body { 
+    <title>Smart Logger</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <style>        body { 
             font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 20px; 
@@ -331,10 +334,39 @@
         .autoSaveBtn.active {
             background: #28a745;
         }
+        
+        /* Version Switcher Floating Button */
+.version-switcher {
+    position: fixed;
+    top: 1.5rem;
+    right: 2rem;
+    width: 2.8rem;
+    height: 2.8rem;
+    background: #fff;
+    color: #007acc;
+    border: 2px solid #007acc;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,122,204,0.10);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 120;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.version-switcher:hover {
+    background: #007acc;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,122,204,0.18);
+}
+@media print {
+    .version-switcher { display: none !important; }
+}
     </style>
 </head>
 <body>
     <div class="main-container">
+        <!-- UI Switcher removed as per request -->
         <div class="controls-section">
             <h1>Smart Logger</h1>
 
@@ -372,6 +404,10 @@
         </div>
     </div>
 
+    <!-- Version Switcher Floating Button -->
+    <button id="versionSwitcher" class="version-switcher" title="Switch to Modern UI (v2)" onclick="window.location.href='index.html'">
+      <span style="font-size:1.2em;">✨</span>
+    </button>
     <!-- Go to Top Button -->
     <button class="goToTopBtn" id="goToTopBtn" onclick="goToTop()" title="Go to top">↑</button>    <script>
         const logContainer = document.getElementById('logContainer');        let allLogs = []; // Keep track of all logs for search
@@ -729,7 +765,7 @@
                               localStorage.setItem('nextLogId', nextLogId.toString());
                               localStorage.setItem('logs', JSON.stringify(logs));
                             alert(`${data.logs.length} logs imported successfully!`);
-                            
+
 
                             // Auto-save to file if enabled
                             if (autoSaveEnabled) {
@@ -1294,6 +1330,18 @@ function harmonizeInputActivation(el, options = {}) {
     });
     harmonizeInputActivation(searchInput);
 })();
+    </script>
+    <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(reg) {
+          console.log('Service Worker registered:', reg);
+        }, function(err) {
+          console.warn('Service Worker registration failed:', err);
+        });
+      });
+    }
     </script>
 </body>
 </html>

@@ -7,6 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Smart Logger v2</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <style>
         /* Reset and Base Styles */
         * {
@@ -686,10 +688,37 @@
             width: 0%;
             transition: width 0.3s ease;
             border-radius: 4px;
+        }    /* Version Switcher Floating Button */
+        .version-switcher {
+            position: fixed;
+            top: 1.5rem;
+            right: 2rem;
+            width: 2.8rem;
+            height: 2.8rem;
+            background: #fff;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.10);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 120;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .version-switcher:hover {
+            background: #3b82f6;
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(59,130,246,0.18);
+        }
+        @media print {
+            .version-switcher { display: none !important; }
         }    </style>
 </head>
 <body>
     <div class="main-container">
+
         <div class="controls-section">
             <h1 class="app-title">Smart Logger v2</h1>
 
@@ -746,11 +775,27 @@
         </div>
     </div>
 
+    <!-- Version Switcher Floating Button -->
+    <button id="versionSwitcher" class="version-switcher" title="Switch to Classic UI (v1)" onclick="window.location.href='logger.html'">
+      <span style="font-size:1.2em;">🖥️</span>
+    </button>
     <!-- Go to Top Button -->
     <button class="back-to-top" id="backToTop" title="Go to top">↑</button>
 
     <!-- Core JavaScript -->
     <script src="js/core-simple.js"></script>
+    <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(reg) {
+          console.log('Service Worker registered:', reg);
+        }, function(err) {
+          console.warn('Service Worker registration failed:', err);
+        });
+      });
+    }
+    </script>
 
     <!-- Initialize Application -->
     <script>
@@ -794,6 +839,7 @@
         }
 
         // Check File System Access API support
+
         function checkFileAPISupport() {
             isFileAPISupported = 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
             
@@ -838,6 +884,7 @@
             const progressText = document.getElementById('progressText');
             
             if (progressFill) {
+
                 progressFill.style.width = `${percent}%`;
             }
             if (progressText) {
