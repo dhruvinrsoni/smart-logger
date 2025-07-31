@@ -1,0 +1,53 @@
+name: 📊 Health Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      custom_url:
+        description: 'Custom URL to check (optional)'
+        required: false
+        type: string
+  schedule:
+    - cron: '0 */12 * * *'  # Every 12 hours
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Check Smart Logger Status
+        id: health_check
+        run: |
+          # Use custom URL if provided, otherwise Smart Logger URL
+          if [ -n "${{ github.event.inputs.custom_url }}" ]; then
+            DEMO_URL="${{ github.event.inputs.custom_url }}"
+          else
+            DEMO_URL="https://dhruvinrsoni.github.io/smart-logger/"
+          fi
+          
+          echo "🔍 Checking Smart Logger at: $DEMO_URL"
+          
+          # Check main page
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEMO_URL" || echo "000")
+          RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$DEMO_URL" || echo "0")
+          
+          # Check classic logger page
+          LOGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${DEMO_URL}logger.html" || echo "000")
+          
+          if [ "$HTTP_STATUS" = "200" ] && [ "$LOGGER_STATUS" = "200" ]; then
+            echo "✅ Smart Logger is online and healthy"
+            echo "   • Main UI (v2): ✅ Online (${HTTP_STATUS})"
+            echo "   • Classic UI (v1): ✅ Online (${LOGGER_STATUS})"
+            echo "   • Response time: ${RESPONSE_TIME}s"
+          else
+            echo "❌ Smart Logger health check failed"
+            echo "   • Main UI (v2): ${HTTP_STATUS}"
+            echo "   • Classic UI (v1): ${LOGGER_STATUS}"
+            exit 1
+          fi
+
+      - name: 📊 Status Summary
+        run: |
+          echo "🎯 Smart Logger Health Check Complete"
+          echo "📋 Checked at: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
+          echo "🔗 App URL: https://dhruvinrsoni.github.io/smart-logger/"
+          echo "📱 Both UI versions are accessible and working"

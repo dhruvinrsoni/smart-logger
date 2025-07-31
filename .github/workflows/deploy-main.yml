@@ -1,0 +1,63 @@
+name: 🚀 Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛒 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Validate Smart Logger Files
+        run: |
+          echo "🔍 Checking Smart Logger files..."
+          
+          REQUIRED_FILES=("index.html" "logger.html" "manifest.json" "sw.js")
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          echo "✅ All Smart Logger files validated"
+
+      - name: 🏗️ Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: ✅ Deployment Summary
+        run: |
+          echo "🎉 Smart Logger deployed successfully!"
+          echo "📋 Deployment Details:"
+          echo "   • Branch: ${{ github.ref_name }}"
+          echo "   • Commit: ${{ github.sha }}"
+          echo "   • URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "   • Time: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
+          echo ""
+          echo "📱 Smart Logger Interfaces:"
+          echo "   • Modern UI (v2): ${{ steps.deployment.outputs.page_url }}"
+          echo "   • Classic UI (v1): ${{ steps.deployment.outputs.page_url }}logger.html"

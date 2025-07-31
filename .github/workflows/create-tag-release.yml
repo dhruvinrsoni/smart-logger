@@ -1,0 +1,261 @@
+name: 🏷️ Create Tag & Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_type:
+        description: 'Release Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - prerelease
+      auto_deploy:
+        description: 'Auto-deploy after release'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag_name: ${{ steps.create_tag.outputs.tag_name }}
+      release_success: ${{ steps.set_success.outputs.success }}
+    
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔍 Validate Version Format
+        run: |
+          if [[ ! "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.-]+)?$ ]]; then
+            echo "❌ Invalid version format. Use semantic versioning (e.g., 1.0.0)"
+            exit 1
+          fi
+          
+          if git tag -l | grep -q "^v${{ github.event.inputs.version }}$"; then
+            echo "❌ Tag v${{ github.event.inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: 🔍 Validate Smart Logger Files
+        run: |
+          echo "🔍 Checking Smart Logger files before release..."
+          
+          REQUIRED_FILES=("index.html" "logger.html" "manifest.json" "sw.js" "README.md")
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          echo "✅ All Smart Logger files validated"
+          
+          echo "✅ Version v${{ github.event.inputs.version }} is valid"
+
+      - name: 📝 Update Version Files
+        run: |
+          # Update version.txt
+          IST_TIME=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')
+          echo "🔖 v${{ github.event.inputs.version }} · $IST_TIME · 🚀 Release" > version.txt
+          
+          # Update manifest.json if exists
+          if [ -f manifest.json ]; then
+            # Install jq if not available
+            if ! command -v jq &> /dev/null; then
+              sudo apt-get update && sudo apt-get install -y jq
+            fi
+            jq '.version = "${{ github.event.inputs.version }}"' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          fi
+          
+          echo "✅ Updated version files"
+
+      - name: 📋 Update RELEASES.md
+        run: |
+          # Generate release notes content
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          IST_TIME=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')
+          
+          if [ -n "$LATEST_TAG" ]; then
+            CHANGES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- **%s** - %b" --no-merges | head -10)
+          else
+            CHANGES=$(git log --pretty=format:"- **%s** - %b" --no-merges -10)
+          fi
+          
+          # Handle empty changelog case
+          if [ -z "$CHANGES" ]; then
+            CHANGES="- **Initial release** - First version of Cipher Alchemist"
+          fi
+          
+          # Create the new RELEASES.md content using a safer approach
+          cat > temp_release.md << EOF
+          # 🚀 Release History
+          
+          ## 📋 Current Release: v${{ github.event.inputs.version }}
+          
+          **Release Date:** $IST_TIME  
+          **Branch:** main  
+          **Status:** ✅ Active Release
+          
+          ### 🎉 What's New in v${{ github.event.inputs.version }}
+          
+          #### 🚀 Key Features & Improvements
+          EOF
+          
+          # Safely append the changes (which may contain special characters)
+          echo "$CHANGES" >> temp_release.md
+          
+          # Continue with the rest of the content
+          cat >> temp_release.md << EOF
+          
+          ### 🔗 Links
+          - 🌐 **Live Demo:** [dhruvinrsoni.github.io/cipher-alchemist](https://dhruvinrsoni.github.io/cipher-alchemist/)
+          - 📱 **Repository:** [github.com/dhruvinrsoni/cipher-alchemist](https://github.com/dhruvinrsoni/cipher-alchemist)
+          - 📥 **Download:** [Download v${{ github.event.inputs.version }}](https://github.com/dhruvinrsoni/cipher-alchemist/archive/refs/tags/v${{ github.event.inputs.version }}.zip)
+          
+          ---
+          
+          ## 📚 Previous Releases
+          
+          EOF
+          
+          # If RELEASES.md exists, extract previous releases and append
+          if [ -f docs/RELEASES.md ]; then
+            # Extract everything after "## 📚 Previous Releases" or after first "---"
+            awk '/^## 📚 Previous Releases|^---/{found=1; next} found' docs/RELEASES.md >> temp_release.md
+          fi
+          
+          # Replace the original file
+          mv temp_release.md docs/RELEASES.md
+          
+          echo "✅ Updated docs/RELEASES.md with v${{ github.event.inputs.version }} information"
+
+      - name: 📊 Generate Changelog
+        id: changelog
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$LATEST_TAG" ]; then
+            CHANGES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges -10)
+          fi
+          
+          # Handle empty changelog case
+          if [ -z "$CHANGES" ]; then
+            CHANGES="- Initial release"
+          fi
+          
+          # Create changelog for release notes
+          {
+            echo "CHANGELOG<<EOF"
+            echo "## 🚀 What's New"
+            echo ""
+            echo "$CHANGES"
+            echo ""
+            echo "## 🔗 Links"
+            echo "- 🌐 [Live Demo](https://dhruvinrsoni.github.io/cipher-alchemist/)"
+            echo "- 📱 [Repository](https://github.com/${{ github.repository }})"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: 💾 Commit Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add version.txt docs/RELEASES.md
+          # Only add manifest.json if it exists
+          if [ -f manifest.json ]; then
+            git add manifest.json
+          fi
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🔖 Release v${{ github.event.inputs.version }}
+
+            - Updated version.txt with release information
+            - Updated docs/RELEASES.md with new release notes
+            - Updated manifest.json version (if applicable)"
+            git push origin main
+          fi
+
+      - name: 🏷️ Create Tag
+        id: create_tag
+        run: |
+          TAG_NAME="v${{ github.event.inputs.version }}"
+          git tag -a "$TAG_NAME" -m "Release v${{ github.event.inputs.version }}"
+          git push origin "$TAG_NAME"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: 📦 Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag_name }}
+          name: 🔮 Cipher Alchemist v${{ github.event.inputs.version }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ✅ Set Success Output
+        id: set_success
+        run: echo "success=true" >> $GITHUB_OUTPUT
+
+  auto-deploy:
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: ${{ github.event.inputs.auto_deploy == 'true' && needs.create-release.outputs.release_success == 'true' }}
+    
+    steps:
+      - name: 🚀 Trigger Deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'deploy-by-version.yml',
+                ref: 'main',
+                inputs: {
+                  version_tag: '${{ needs.create-release.outputs.tag_name }}'
+                }
+              });
+              console.log('✅ Deployment workflow triggered successfully');
+            } catch (error) {
+              console.error('❌ Failed to trigger deployment:', error);
+              core.setFailed('Failed to trigger auto-deployment');
+            }
+
+      - name: 🎉 Release Summary
+        run: |
+          echo "🏷️ Release created and deployment initiated!"
+          echo "📋 Summary:"
+          echo "   • Tag: ${{ needs.create-release.outputs.tag_name }}"
+          echo "   • Auto-deployment: Triggered for production"
+          echo "   • Time: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
+          echo ""
+          echo "📊 Next Steps:"
+          echo "   • Deployment workflow will run automatically"
+          echo "   • Status workflow will verify deployment health"
+          echo "   • Check Actions tab for progress updates"
+

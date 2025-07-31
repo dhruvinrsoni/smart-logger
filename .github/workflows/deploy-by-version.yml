@@ -1,0 +1,115 @@
+name: 🚀 Deploy by Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+      force_deploy:
+        description: 'Force deployment (bypass checks)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    steps:
+      - name: 🛒 Checkout Tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version_tag }}
+          fetch-depth: 0
+
+      - name: 🔍 Validate Tag
+        run: |
+          if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+            echo "⚠️ Force deploy enabled - bypassing tag validation"
+          else
+            if ! git tag -l | grep -q "^${{ github.event.inputs.version_tag }}$"; then
+              echo "❌ Tag ${{ github.event.inputs.version_tag }} does not exist"
+              echo "Available tags:"
+              git tag -l | sort -V | tail -10
+              exit 1
+            fi
+          fi
+          echo "✅ Tag ${{ github.event.inputs.version_tag }} validated"
+
+      - name: 🏥 Pre-deployment Health Check
+        if: ${{ github.event.inputs.force_deploy == 'false' }}
+        run: |
+          echo "🔍 Running pre-deployment checks..."
+          
+          # Check if essential Smart Logger files exist
+          REQUIRED_FILES=("index.html" "logger.html" "manifest.json" "sw.js")
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          echo "✅ Pre-deployment health check passed"
+
+      - name: 🏗️ Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: 🔍 Post-deployment Verification
+        run: |
+          echo "⏳ Waiting for deployment to propagate..."
+          sleep 30
+          
+          DEMO_URL="${{ steps.deployment.outputs.page_url }}"
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f -s "$DEMO_URL" > /dev/null; then
+              echo "✅ Deployment verification successful"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "⏳ Retry $RETRY_COUNT/$MAX_RETRIES - waiting 10 seconds..."
+              sleep 10
+            fi
+          done
+          
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "⚠️ Deployment verification failed after $MAX_RETRIES attempts"
+            echo "🔗 Manual verification required: $DEMO_URL"
+          fi
+
+      - name: ✅ Deployment Summary
+        run: |
+          echo "🎉 Smart Logger deployment completed successfully!"
+          echo "📋 Details:"
+          echo "   • Version: ${{ github.event.inputs.version_tag }}"
+          echo "   • Environment: github-pages"
+          echo "   • URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "   • Force Deploy: ${{ github.event.inputs.force_deploy }}"
+          echo "   • Time: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
+          echo ""
+          echo "📊 Next Steps:"
+          echo "   • Test the Smart Logger app at the deployed URL"
+          echo "   • Check both index.html (v2) and logger.html (v1) interfaces"

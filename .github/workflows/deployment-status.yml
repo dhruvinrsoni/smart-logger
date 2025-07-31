@@ -1,0 +1,300 @@
+name: 📊 Deployment Status
+
+on:
+  workflow_dispatch:
+    inputs:
+      detailed_report:
+        description: 'Generate detailed report'
+        required: false
+        default: true
+        type: boolean
+      custom_url:
+        description: 'Custom URL to check (optional)'
+        required: false
+        type: string
+  # ✅ NEW: Auto-trigger after deployments
+  workflow_run:
+    workflows: 
+      - "🚀 Deploy by Version"
+      - "🏷️ Create Tag & Release"
+      - "🔄 Rollback to Previous Version"
+    types:
+      - completed
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # ✅ ENHANCED: Skip check if triggering workflow failed
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    # ✅ NEW: Dynamic job name with timestamp
+    name: "Health Check - Run ${{ github.run_id }}"
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history including tags
+
+      - name: 🔄 Check Trigger Source
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "🚀 Auto-triggered after deployment workflow: ${{ github.event.workflow_run.name }}"
+            echo "📊 Deployment Status: ${{ github.event.workflow_run.conclusion }}"
+            echo "🔗 Workflow URL: ${{ github.event.workflow_run.html_url }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "⏰ Scheduled health check (every 6 hours)"
+          else
+            echo "🎯 Manual health check triggered"
+          fi
+
+      - name: 🕐 Set IST Timestamp
+        id: timestamp
+        run: |
+          IST_TIME=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')
+          IST_SHORT_SAFE=$(TZ='Asia/Kolkata' date '+%m-%d_%H-%M')
+          IST_DISPLAY=$(TZ='Asia/Kolkata' date '+%m/%d %H:%M IST')
+          echo "ist_time=${IST_TIME}" >> $GITHUB_OUTPUT
+          echo "ist_short_safe=${IST_SHORT_SAFE}" >> $GITHUB_OUTPUT
+          echo "ist_display=${IST_DISPLAY}" >> $GITHUB_OUTPUT
+          echo "📅 Current IST Time: ${IST_TIME}"
+
+      - name: 🔍 Check Demo Status
+        id: demo_check
+        run: |
+          # ✅ FIXED: Use custom URL if provided, otherwise Smart Logger URL
+          if [ -n "${{ github.event.inputs.custom_url }}" ]; then
+            DEMO_URL="${{ github.event.inputs.custom_url }}"
+          else
+            DEMO_URL="https://dhruvinrsoni.github.io/smart-logger/"
+          fi
+          
+          echo "🔍 Checking URL: $DEMO_URL"
+          
+          # ✅ ENHANCED: Multiple check types
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEMO_URL" || echo "000")
+          RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$DEMO_URL" || echo "0")
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "status=✅ Online (${HTTP_STATUS})" >> $GITHUB_OUTPUT
+            echo "response_time=${RESPONSE_TIME}s" >> $GITHUB_OUTPUT
+          else
+            echo "status=❌ Offline (${HTTP_STATUS})" >> $GITHUB_OUTPUT
+            echo "response_time=N/A" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "url=$DEMO_URL" >> $GITHUB_OUTPUT
+          echo "http_status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+
+      - name: 📊 Generate Status Report
+        if: ${{ github.event.inputs.detailed_report == 'true' || github.event_name == 'schedule' }}
+        run: |
+          # ✅ FIXED: Check if STATUS_REPORT.md exists, create if not
+          echo "🔍 Checking if STATUS_REPORT.md exists..."
+          
+          if [ ! -f "STATUS_REPORT.md" ]; then
+            echo "📝 STATUS_REPORT.md not found, creating new file..."
+            touch STATUS_REPORT.md
+          else
+            echo "✅ STATUS_REPORT.md already exists, updating..."
+          fi
+          
+          # Generate the status report with actual values
+          echo "🔍 Gathering repository information..."
+            # Capture git information
+          CURRENT_VERSION=$(cat version.txt 2>/dev/null || echo "Unknown")
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "No tags")
+          
+          # Calculate total releases with better logic
+          if git tag -l | grep "^v" > /dev/null 2>&1; then
+            TOTAL_RELEASES=$(git tag -l | grep "^v" | wc -l)
+            echo "📊 Found $TOTAL_RELEASES version tags with 'v' prefix"
+          elif git tag -l > /dev/null 2>&1; then
+            TOTAL_RELEASES=$(git tag -l | wc -l)
+            echo "📊 Found $TOTAL_RELEASES total tags (no 'v' prefix filter)"
+          else
+            TOTAL_RELEASES="0"
+            echo "📊 No tags found in repository"
+          fi
+          
+          LAST_COMMIT=$(git log -1 --pretty=format:"%h - %s (%cr)" 2>/dev/null || echo "No commits")
+          TOTAL_COMMITS=$(git rev-list --all --count 2>/dev/null || echo "0")
+          CONTRIBUTORS=$(git log --format='%an' | sort -u | wc -l 2>/dev/null || echo "0")
+          REMOTE_BRANCHES=$(git branch -r | wc -l 2>/dev/null || echo "0")
+            # Generate recent versions list
+          echo "🏷️ Gathering recent versions..."
+          echo "📝 Checking for version tags..."
+          
+          # Check if any tags exist first
+          if git tag | head -1 > /dev/null 2>&1; then
+            echo "✅ Tags found, filtering for version tags..."
+            # Try to get version tags (with 'v' prefix)
+            if git tag -l | grep "^v" | sort -V | tail -5 > recent_versions.tmp 2>/dev/null && [ -s recent_versions.tmp ]; then
+              echo "✅ Version tags with 'v' prefix found"
+            else
+              echo "📝 No 'v' prefixed tags found, checking all tags..."
+              # If no 'v' tags, get all tags
+              if git tag -l | sort -V | tail -5 > recent_versions.tmp 2>/dev/null && [ -s recent_versions.tmp ]; then
+                echo "✅ All tags retrieved"
+              else
+                echo "📝 No tags found, using current version"
+                echo "$(cat version.txt 2>/dev/null || echo 'No version information')" > recent_versions.tmp
+              fi
+            fi
+          else
+            echo "📝 No git tags found, using current version from version.txt"
+            echo "$(cat version.txt 2>/dev/null || echo 'No version information available')" > recent_versions.tmp
+          fi
+            # Generate recent activity
+          echo "📋 Gathering recent activity..."
+          echo "📝 Checking git log..."
+          
+          if git log --oneline -5 > recent_activity.tmp 2>/dev/null && [ -s recent_activity.tmp ]; then
+            echo "✅ Recent commits retrieved"
+          else
+            echo "📝 No recent activity found, creating placeholder"
+            echo "No recent commit activity available" > recent_activity.tmp
+          fi
+          
+          # Generate the status report
+          cat > STATUS_REPORT.md << EOF
+          # 📊 Cipher Alchemist - Deployment Status
+          
+          **Generated:** ${{ steps.timestamp.outputs.ist_time }}
+          **Trigger:** ${{ github.event_name }}
+          **Run ID:** ${{ github.run_id }}
+          
+          ## 🌐 Live Demo Health
+          - **URL:** [${{ steps.demo_check.outputs.url }}](${{ steps.demo_check.outputs.url }})
+          - **Status:** ${{ steps.demo_check.outputs.status }}
+          - **HTTP Code:** ${{ steps.demo_check.outputs.http_status }}
+          - **Response Time:** ${{ steps.demo_check.outputs.response_time }}
+          
+          ## 📦 Version Information
+          - **Current Version:** ${CURRENT_VERSION}
+          - **Latest Tag:** ${LATEST_TAG}
+          - **Total Releases:** ${TOTAL_RELEASES}
+          - **Last Commit:** ${LAST_COMMIT}
+            ## 🔄 Available Versions
+          \`\`\`
+          $(if [ -s recent_versions.tmp ]; then cat recent_versions.tmp; else echo "Current: $(cat version.txt 2>/dev/null || echo 'No version info')"; fi)
+          \`\`\`
+          
+          ## 📋 Recent Activity
+          \`\`\`
+          $(if [ -s recent_activity.tmp ]; then cat recent_activity.tmp; else echo "Latest: $(cat version.txt 2>/dev/null || echo 'No activity info')"; fi)
+          \`\`\`
+          
+          ## 📈 Repository Stats
+          - **Total Commits:** ${TOTAL_COMMITS}
+          - **Contributors:** ${CONTRIBUTORS}
+          - **Branches:** ${REMOTE_BRANCHES}
+          
+          ## 📊 Check History
+          | Check Time | Status | Response Time | HTTP Code |
+          |------------|--------|---------------|-----------|
+          | ${{ steps.timestamp.outputs.ist_time }} | ${{ steps.demo_check.outputs.status }} | ${{ steps.demo_check.outputs.response_time }} | ${{ steps.demo_check.outputs.http_status }} |
+            ---
+          *Status report generated by GitHub Actions*  
+          *Last Updated: ${{ steps.timestamp.outputs.ist_time }}*
+          EOF
+          
+          echo "✅ STATUS_REPORT.md updated successfully"
+          
+          # Cleanup temporary files
+          rm -f recent_versions.tmp recent_activity.tmp
+          
+          # Show file size for verification
+          ls -la STATUS_REPORT.md
+
+      - name: 💾 Archive Status Report
+        if: ${{ github.event.inputs.detailed_report == 'true' || github.event_name == 'schedule' }}
+        uses: actions/upload-artifact@v4
+        with:
+          # ✅ ENHANCED: Include IST timestamp in artifact name
+          name: deployment-status-${{ steps.timestamp.outputs.ist_short_safe }}-run${{ github.run_id }}
+          path: STATUS_REPORT.md
+          retention-days: 30
+
+      # ✅ NEW: Send notification on failure (optional)
+      - name: 🚨 Alert on Failure
+        if: ${{ steps.demo_check.outputs.http_status != '200' && github.event_name == 'schedule' }}
+        run: |
+          echo "🚨 ALERT: Demo site is down!"
+          echo "URL: ${{ steps.demo_check.outputs.url }}"
+          echo "Status: ${{ steps.demo_check.outputs.status }}"
+          echo "HTTP Code: ${{ steps.demo_check.outputs.http_status }}"
+          echo "Time: ${{ steps.timestamp.outputs.ist_time }}"
+          
+          # ✅ ENHANCED: Create failure report
+          cat > FAILURE_REPORT.md << EOF
+          # 🚨 DEPLOYMENT FAILURE ALERT
+          
+          **Alert Time:** ${{ steps.timestamp.outputs.ist_time }}
+          **Trigger:** ${{ github.event_name }}
+          
+          ## 🔴 Failure Details
+          - **URL:** ${{ steps.demo_check.outputs.url }}
+          - **Status:** ${{ steps.demo_check.outputs.status }}
+          - **HTTP Code:** ${{ steps.demo_check.outputs.http_status }}
+          - **Response Time:** ${{ steps.demo_check.outputs.response_time }}
+          
+          ## 🔧 Recommended Actions
+          1. Check GitHub Pages deployment status
+          2. Verify DNS configuration
+          3. Check for recent commits that might have broken the site
+          4. Manual verification: ${{ steps.demo_check.outputs.url }}
+          
+          ---
+          *Failure alert generated by GitHub Actions*
+          EOF
+          
+          # Future: Add Slack/Discord/Email notification here
+
+      - name: 📄 Display Status
+        run: |
+          echo "📊 Deployment Status Summary"
+          echo "============================"
+          echo "🕐 Check Time: ${{ steps.timestamp.outputs.ist_time }}"
+          echo "🌐 Demo Status: ${{ steps.demo_check.outputs.status }}"
+          echo "🔗 Demo URL: ${{ steps.demo_check.outputs.url }}"
+          echo "⚡ Response Time: ${{ steps.demo_check.outputs.response_time }}"
+          echo "📋 HTTP Code: ${{ steps.demo_check.outputs.http_status }}"
+          echo "🏃 Run ID: ${{ github.run_id }}"
+          echo "============================"
+
+      # ✅ NEW: Update workflow summary with IST timestamp
+      - name: 📋 Update Job Summary
+        run: |
+          # Capture git information for summary
+          CURRENT_VERSION=$(cat version.txt 2>/dev/null || echo "Unknown")
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "No tags")
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # 📊 Deployment Status - ${{ steps.timestamp.outputs.ist_time }}
+          
+          ## 🌐 Health Check Results
+          | Metric | Value |
+          |--------|-------|
+          | 🔗 URL | [${{ steps.demo_check.outputs.url }}](${{ steps.demo_check.outputs.url }}) |
+          | 📊 Status | ${{ steps.demo_check.outputs.status }} |
+          | ⚡ Response Time | ${{ steps.demo_check.outputs.response_time }} |
+          | 🔢 HTTP Code | ${{ steps.demo_check.outputs.http_status }} |
+          | 🕐 Check Time | ${{ steps.timestamp.outputs.ist_time }} |
+          | 🎯 Trigger | ${{ github.event_name }} |
+          
+          $(if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "| 🚀 Triggered By | ${{ github.event.workflow_run.name }} |"
+            echo "| 📊 Source Status | ${{ github.event.workflow_run.conclusion }} |"
+          fi)
+          
+          ## 📦 Quick Stats
+          - **Current Version:** ${CURRENT_VERSION}
+          - **Latest Tag:** ${LATEST_TAG}
+          
+          ---
+          *Auto-generated deployment status report*  
+          *Updated: ${{ steps.timestamp.outputs.ist_time }}*
+          EOF
