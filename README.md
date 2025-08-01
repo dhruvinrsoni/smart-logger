@@ -3,6 +3,17 @@
 
 A privacy-first, offline-capable logging application built with vanilla HTML, CSS, and JavaScript. Features both a modern and classic UI, works fully offline, and is PWA-enabled. No external dependencies.
 
+## 🎯 Key Highlights
+
+- **🔒 Privacy-First**: All data stays local unless you explicitly export it
+- **📱 Dual UI**: Modern (index.html) and Classic (logger.html) interfaces
+- **🔄 Offline-Ready**: PWA with service worker for complete offline functionality
+- **💾 Auto-Save**: Automatic file saving in supported browsers (Chrome/Edge)
+- **🔍 Smart Search**: Real-time search across titles, content, and timestamps
+- **📤 Export/Import**: JSON, Text, and CSV format support
+- **⌨️ Keyboard Shortcuts**: Ctrl+Enter to add, intuitive navigation
+- **🚀 Zero Dependencies**: Pure HTML, CSS, and JavaScript - no build tools
+
 
 ## Features
 
@@ -18,28 +29,29 @@ A privacy-first, offline-capable logging application built with vanilla HTML, CS
 - ✅ Version switcher between UIs
 
 
-## Quick Start
+## 🚀 Quick Start
 
-1. Open `index.html` for the modern UI (v2)
-2. Or open `logger.html` for the classic UI (v1)
-3. Add logs, search, edit, delete, and export as needed
-4. Use the version switcher to toggle between UIs
-5. For PWA/offline: open via `python -m http.server 8000` and install to home screen
+1. **Modern UI**: Open `index.html` for advanced features (v2)
+2. **Classic UI**: Open `logger.html` for lightweight experience (v1)
+3. **PWA Mode**: Serve via `python -m http.server 8000` and install to home screen
+4. **Start Logging**: Add, search, edit, delete, and export logs
+5. **Switch UIs**: Use the version switcher to toggle between interfaces
 
 
-## Files & Structure
+## 📁 Files & Structure
 
-- `index.html` — Modern UI (v2), advanced features
-- `logger.html` — Classic UI (v1), lightweight
-- `js/core-simple.js` — Shared core logic
-- `manifest.json` — PWA configuration
+- `index.html` — Modern UI (v2) with enhanced features
+- `logger.html` — Classic UI (v1), lightweight and fast
+- `js/core-simple.js` — Shared core functionality
+- `manifest.json` — PWA configuration and metadata
 - `sw.js` — Service worker for offline support
-- `assets/icons/` — App icons for PWA and social
-- `.github/workflows/` — GitHub Actions for CI/CD, deployment, health checks
-- `README.md` — This documentation
+- `assets/icons/` — App icons for PWA and social media
+- `.github/workflows/` — GitHub Actions for CI/CD automation
+- `.github/copilot-instructions.md` — AI coding guidelines
+- `.github/FUNDING.yml` — Sponsorship and funding options
 
 
-## Usage
+## 🔧 Usage
 
 ### Adding Logs
 - Enter a title (optional) and content
@@ -60,14 +72,14 @@ A privacy-first, offline-capable logging application built with vanilla HTML, CS
 - Delete individual logs or clear all
 
 
-## Browser Compatibility
+## 🌐 Browser Compatibility
 
 - **Chrome/Edge**: Full functionality (auto-save, PWA install)
 - **Firefox/Safari**: Core features (manual export/import, offline)
 - **All modern browsers**: Logging, search, localStorage, PWA
 
 
-## Data Storage & Privacy
+## 🔒 Data Storage & Privacy
 
 - Logs are saved to browser localStorage by default
 - Auto-save to file is available in supported browsers
@@ -75,28 +87,28 @@ A privacy-first, offline-capable logging application built with vanilla HTML, CS
 - No analytics, tracking, or cloud storage
 
 
-## Progressive Web App (PWA)
+## 📱 Progressive Web App (PWA)
 
 - Installable on mobile/desktop ("Add to Home Screen")
 - Works offline via service worker
 - App icons and splash screens for all platforms
 
-## CI/CD & Automation
+## 🤖 CI/CD & Automation
 
 - **GitHub Actions**: Automated deployment to GitHub Pages on push to `main`
 - **Release workflows**: Tag-based releases, versioned deployments, and health checks
 - **Health monitoring**: Scheduled checks for both UIs, with status reporting
 
-## AI Agent & Contribution Guidelines
+## 🧑‍💻 AI Agent & Contribution Guidelines
 
 - See `.github/copilot-instructions.md` for AI coding standards
 - Keep code minimal, clean, and privacy-first
 - All features must work offline and in both UIs
 
-## Funding & Sponsorship
+## 💖 Funding & Sponsorship
 
 - See `.github/FUNDING.yml` for ways to support the project
 
-## License
+## 📄 License
 
 MIT License — Free for personal and commercial use.

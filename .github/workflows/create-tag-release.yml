@@ -1,8 +1,6 @@
 name: 🏷️ Create Tag & Release
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       version:
@@ -100,7 +98,7 @@ jobs:
           
           # Handle empty changelog case
           if [ -z "$CHANGES" ]; then
-            CHANGES="- **Initial release** - First version of Cipher Alchemist"
+            CHANGES="- **Initial release** - First version of Smart Logger"
           fi
           
           # Create the new RELEASES.md content using a safer approach
@@ -125,9 +123,9 @@ jobs:
           cat >> temp_release.md << EOF
           
           ### 🔗 Links
-          - 🌐 **Live Demo:** [dhruvinrsoni.github.io/cipher-alchemist](https://dhruvinrsoni.github.io/cipher-alchemist/)
-          - 📱 **Repository:** [github.com/dhruvinrsoni/cipher-alchemist](https://github.com/dhruvinrsoni/cipher-alchemist)
-          - 📥 **Download:** [Download v${{ github.event.inputs.version }}](https://github.com/dhruvinrsoni/cipher-alchemist/archive/refs/tags/v${{ github.event.inputs.version }}.zip)
+          - 🌐 **Live Demo:** [dhruvinrsoni.github.io/smart-logger](https://dhruvinrsoni.github.io/smart-logger/)
+          - 📱 **Repository:** [github.com/dhruvinrsoni/smart-logger](https://github.com/dhruvinrsoni/smart-logger)
+          - 📥 **Download:** [Download v${{ github.event.inputs.version }}](https://github.com/dhruvinrsoni/smart-logger/archive/refs/tags/v${{ github.event.inputs.version }}.zip)
           
           ---
           
@@ -170,7 +168,7 @@ jobs:
             echo "$CHANGES"
             echo ""
             echo "## 🔗 Links"
-            echo "- 🌐 [Live Demo](https://dhruvinrsoni.github.io/cipher-alchemist/)"
+            echo "- 🌐 [Live Demo](https://dhruvinrsoni.github.io/smart-logger/)"
             echo "- 📱 [Repository](https://github.com/${{ github.repository }})"
             echo "EOF"
           } >> $GITHUB_OUTPUT
@@ -210,7 +208,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.create_tag.outputs.tag_name }}
-          name: 🔮 Cipher Alchemist v${{ github.event.inputs.version }}
+          name: � Smart Logger v${{ github.event.inputs.version }}
           body: ${{ steps.changelog.outputs.CHANGELOG }}
           draft: false
           prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
