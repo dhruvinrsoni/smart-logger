@@ -71,7 +71,7 @@ class PWAInstaller {
         this.installButton.style.cssText = `
             position: fixed;
             top: 20px;
-            right: 20px;
+            right: 90px;
             width: 50px;
             height: 50px;
             border-radius: 50%;
@@ -81,7 +81,7 @@ class PWAInstaller {
             font-size: 20px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            z-index: 10000;
+            z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -129,14 +129,14 @@ class PWAInstaller {
             this.isInstalled = true;
             this.deferredPrompt = null;
             this.updateButtonState();
-            this.showNotification('✅ Smart Logger installed successfully!', 'success');
+            window.smartNotification?.success('✅ Smart Logger installed successfully!');
         });
     }
 
     checkForUpdates() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                this.showNotification('🔄 App updated! Refresh to see changes.', 'info');
+                window.smartNotification?.info('🔄 App updated! Refresh to see changes.');
             });
         }
     }
@@ -169,7 +169,7 @@ class PWAInstaller {
 
     async handleInstallClick() {
         if (this.isInstalled) {
-            this.showNotification('📱 Smart Logger is already installed!', 'info');
+            window.smartNotification?.info('📱 Smart Logger is already installed!');
             return;
         }
 
@@ -186,9 +186,9 @@ class PWAInstaller {
             console.log(`📱 Install prompt outcome: ${outcome}`);
             
             if (outcome === 'accepted') {
-                this.showNotification('📱 Installing Smart Logger...', 'info');
+                window.smartNotification?.info('📱 Installing Smart Logger...');
             } else {
-                this.showNotification('📱 Installation cancelled', 'warning');
+                window.smartNotification?.warning('📱 Installation cancelled');
                 this.installButton.style.opacity = '1';
             }
             
@@ -198,7 +198,7 @@ class PWAInstaller {
             
         } catch (error) {
             console.error('❌ Install prompt failed:', error);
-            this.showNotification('❌ Installation failed. Try again later.', 'error');
+            window.smartNotification?.error('❌ Installation failed. Try again later.');
             this.installButton.style.opacity = '1';
         }
     }
@@ -219,69 +219,7 @@ class PWAInstaller {
             instructions = '📱 To install: Look for "Add to Home Screen" or "Install" option in your browser menu';
         }
 
-        this.showNotification(instructions, 'info', 8000);
-    }
-
-    showNotification(message, type = 'info', duration = 4000) {
-        // Remove existing notification
-        const existingNotification = document.getElementById('pwa-notification');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
-
-        // Create notification
-        const notification = document.createElement('div');
-        notification.id = 'pwa-notification';
-        notification.textContent = message;
-        
-        // Style based on type
-        const colors = {
-            success: { bg: '#10b981', color: '#ffffff' },
-            error: { bg: '#ef4444', color: '#ffffff' },
-            warning: { bg: '#f59e0b', color: '#ffffff' },
-            info: { bg: '#3b82f6', color: '#ffffff' }
-        };
-        
-        const colorScheme = colors[type] || colors.info;
-        
-        notification.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            max-width: 300px;
-            padding: 12px 16px;
-            background: ${colorScheme.bg};
-            color: ${colorScheme.color};
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 10001;
-            font-size: 14px;
-            line-height: 1.4;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        `;
-
-        document.body.appendChild(notification);
-
-        // Animate in
-        requestAnimationFrame(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateX(0)';
-        });
-
-        // Auto remove
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, duration);
+        window.smartNotification?.info(instructions, 8000);
     }
 
     // Responsive adjustments
@@ -289,10 +227,19 @@ class PWAInstaller {
         if (window.innerWidth <= 768) {
             if (this.installButton) {
                 this.installButton.style.top = '15px';
-                this.installButton.style.right = '15px';
+                this.installButton.style.right = '75px'; // Adjusted for mobile version switcher
                 this.installButton.style.width = '45px';
                 this.installButton.style.height = '45px';
                 this.installButton.style.fontSize = '18px';
+            }
+        } else {
+            // Desktop positioning
+            if (this.installButton) {
+                this.installButton.style.top = '20px';
+                this.installButton.style.right = '90px'; // Side by side with version switcher
+                this.installButton.style.width = '50px';
+                this.installButton.style.height = '50px';
+                this.installButton.style.fontSize = '20px';
             }
         }
     }
