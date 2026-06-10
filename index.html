@@ -729,7 +729,16 @@
         }
         @media print {
             .version-switcher { display: none !important; }
-        }    </style>
+        }
+
+        /* Overflow safety (responsive baseline) — keep content inside its box.
+           Generic; mirrors the agentskills-garden `responsive-design` skill. */
+        *, *::before, *::after { box-sizing: border-box; }
+        img, svg, video, canvas, iframe, embed, object { max-width: 100%; }
+        img, video, canvas { height: auto; }
+        pre { overflow-x: auto; }
+        :where(h1, h2, h3, h4, h5, h6, p, li, dt, dd, td, th, figcaption, blockquote) { overflow-wrap: break-word; }
+    </style>
 </head>
 <body>
     <div class="main-container">
