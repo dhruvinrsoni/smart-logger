@@ -1,4 +1,6 @@
 {
+  "id": "/smart-logger/",
+  "scope": "/smart-logger/",
   "name": "Smart Logger",
   "short_name": "Logger",
   "start_url": "./index.html",
